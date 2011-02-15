@@ -3,7 +3,7 @@
 
 import os, tempfile
 import cairo
-import gtk.gdk
+import gtk
 import gtk.gtkgl # To keep from crashing on load.
 from visvis.backends.backend_gtk import Figure, BaseFigure, GlCanvas, app
 import visvis
@@ -15,6 +15,31 @@ if hasattr(Statement, 'get_current'):
     _get_curr_statement = lambda: Statement.get_current()
 else:
     _get_curr_statement = lambda: None
+
+class Toolbar(gtk.Toolbar):
+    
+    def __init__(self, figure):
+        gtk.Toolbar.__init__(self)
+        self.figure = figure
+        
+        savebutton = gtk.ToolButton(gtk.STOCK_SAVE_AS)
+        savebutton.connect("clicked", self.savefig)
+        self.insert(savebutton, 0)
+    
+    def savefig(self, widget):
+        chooser = gtk.FileChooserDialog("Save As...", None, gtk.FILE_CHOOSER_ACTION_SAVE,
+                                        (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
+                                         gtk.STOCK_SAVE,   gtk.RESPONSE_OK))
+        chooser.set_default_response(gtk.RESPONSE_OK)
+        response = chooser.run()
+        filename = None
+        if response == gtk.RESPONSE_OK:
+            filename = chooser.get_filename()
+        chooser.destroy()
+        
+        if filename is not None:
+            visvis.screenshot(filename, self.figure, sf=1)
+        
 
 class SuperFigure(Figure, CustomResult):
     
@@ -74,7 +99,18 @@ class SuperFigure(Figure, CustomResult):
         self._widget.set_size_request(*self._size)
         self._widget.connect("realize", lambda widget:
             widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
-        return self._widget
+        
+        toolbar = Toolbar(self)
+        e = gtk.EventBox() # For setting cursor
+        e.add(toolbar)
+        toolbar.connect("realize", lambda widget:
+            widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
+        
+        box = gtk.VBox()
+        box.pack_start(self._widget, True, True)
+        box.pack_start(e, False, False)
+        box.show_all()
+        return box
     
     def print_result(self, context, render):
         cr = context.get_cairo_context()
