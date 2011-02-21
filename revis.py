@@ -1,8 +1,9 @@
 """revis allows embedding of visvis figures in Reinteract.
 """
 
-import os, tempfile
+import os, tempfile, threading
 import cairo
+import gobject
 import gtk
 import gtk.gtkgl # To keep from crashing on load.
 from visvis.backends.backend_gtk import Figure, BaseFigure, GlCanvas, app
@@ -15,6 +16,35 @@ if hasattr(Statement, 'get_current'):
     _get_curr_statement = lambda: Statement.get_current()
 else:
     _get_curr_statement = lambda: None
+
+# From Stephen Langer (stephen.langer@nist.gov)
+class IdleBlockCallback:
+    def __init__(self, func, args=(), kwargs={}):
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+        self.event = threading.Event()
+        self.result = None
+    def __call__(self):
+        #gtk.gdk.threads_enter()
+        try:
+            self.result = self.func(*self.args, **self.kwargs)
+        finally:
+            gtk.gdk.flush()
+        #    gtk.gdk.threads_leave()
+            self.event.set()
+        return False              # don't repeat
+
+def _run_in_main_loop(func, *args, **kwargs):
+    if gobject.main_depth():
+        # In the main loop already
+        return func(*args, **kwargs)
+    callbackobj = IdleBlockCallback(func, args, kwargs)
+    callbackobj.event.clear()
+    gobject.idle_add(callbackobj, priority=gobject.PRIORITY_LOW)
+    callbackobj.event.wait()
+    return callbackobj.result
+
 
 class Toolbar(gtk.Toolbar):
     
@@ -39,7 +69,7 @@ class Toolbar(gtk.Toolbar):
         
         if filename is not None:
             visvis.screenshot(filename, self.figure, sf=1)
-        
+
 
 class SuperFigure(Figure, CustomResult):
     
@@ -61,8 +91,7 @@ class SuperFigure(Figure, CustomResult):
             return 0, 0, self._size[0], self._size[1]
     
     def _ProcessGuiEvents(self):
-        # Disable this so it can't be called from non-mainloop thread.
-        pass
+        _run_in_main_loop(Figure._ProcessGuiEvents, self)
 
     
     def __enter__(self):
@@ -74,7 +103,8 @@ class SuperFigure(Figure, CustomResult):
     def __exit__(self, type, value, traceback):
         self.__class__.current_fig = None
         self._restore_reinteract_output()
-        self._output_figure()
+        if self._widget is None:
+            self._output_figure()
         self.__class__.lock.release()
     
     def _disable_reinteract_output(self):
@@ -132,6 +162,7 @@ class SuperFigure(Figure, CustomResult):
         
         return height
 
+
 def gcf():
     return SuperFigure.current_fig
 gcf.__doc__ = visvis.gcf.__doc__
@@ -140,8 +171,31 @@ visvis.functions.gcf = gcf
 
 from visvis.functions import *
 
-figure = lambda *args, **kw: SuperFigure(*args, **kw)
+def figure(*args, **kw):
+    if args and isinstance(args[0], SuperFigure):
+        return args[0]
+    return SuperFigure(*args, **kw)
 figure.__doc__ = visvis.figure.__doc__
+
+def getframe(ob):
+    fig = ob.GetFigure() # if ob is a figure, returns self.
+    if fig._widget is not None:
+        return _run_in_main_loop(visvis.functions.getframe, ob)
+    else:
+        raise RuntimeError, "Can't use getframe until the figure's widget has been created.\n" + \
+                            "This error may have been triggered by a call of screenshot or record."
+getframe.__doc__ = visvis.getframe.__doc__
+visvis.getframe = getframe
+
+def draw(figure=None, fast=False):
+    # Replace figure.Draw() with figure.DrawNow(), as use here is to
+    # update figure before screenshot and continuing on.
+    if figure is None:
+        figure = gcf()
+    if figure is not None:
+        figure.DrawNow(fast)
+draw.__doc__ = visvis.draw.__doc__
+visvis.draw = draw
 
 _solo_funcs = ('bar3', 'grid', 'hist', 'imshow', 'movieShow', 'plot', 
                'polarplot', 'surf', 'solidBox', 'solidCone', 
@@ -149,9 +203,6 @@ _solo_funcs = ('bar3', 'grid', 'hist', 'imshow', 'movieShow', 'plot',
                'solidTeapot', 'volshow')
 
 _disable_funcs = ('close', 'closeAll', 'ginput', 'processEvents', 'use')
-
-# Figure out what to do with these later....
-_screenshot_funcs = ('draw', 'getframe', 'record', 'screenshot')
 
 def _make_func(name):
     try:
