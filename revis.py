@@ -163,19 +163,42 @@ class SuperFigure(Figure, CustomResult):
         return height
 
 
+# Import visvis.functions to current namespace, for convenience
+from visvis.functions import *
+
+# Modify some of visvis's functions
+_solo_funcs = ('bar3', 'grid', 'hist', 'imshow', 'movieShow', 'plot',
+               'polarplot', 'surf', 'solidBox', 'solidCone',
+               'solidCylinder', 'solidLine', 'solidRing', 'solidSphere',
+               'solidTeapot', 'volshow')
+
+_disable_funcs = ('close', 'closeAll', 'figure', 'ginput',
+                  'processEvents', 'use')
+_figure_doc = visvis.figure.__doc__
+
+# Disable potentially harmful functions in visvis and current namespace.
+# Don't worry about visvis.functions, though.
+def _do_nothing(*args, **kw):
+    """This function has been disabled by revis."""
+    return None
+
+for _cmd in _disable_funcs:
+    setattr(visvis, _cmd, _do_nothing)
+    exec('%s = _do_nothing'%_cmd)
+
+# Change these functions, and push the changes back into visvis
 def gcf():
     return SuperFigure.current_fig
 gcf.__doc__ = visvis.gcf.__doc__
 visvis.gcf = gcf
 visvis.functions.gcf = gcf
 
-from visvis.functions import *
-
 def figure(*args, **kw):
     if args and isinstance(args[0], SuperFigure):
         return args[0]
     return SuperFigure(*args, **kw)
-figure.__doc__ = visvis.figure.__doc__
+figure.__doc__ = _figure_doc
+# Leave visvis.function nilpotent
 
 def getframe(ob):
     fig = ob.GetFigure() # if ob is a figure, returns self.
@@ -197,13 +220,7 @@ def draw(figure=None, fast=False):
 draw.__doc__ = visvis.draw.__doc__
 visvis.draw = draw
 
-_solo_funcs = ('bar3', 'grid', 'hist', 'imshow', 'movieShow', 'plot', 
-               'polarplot', 'surf', 'solidBox', 'solidCone', 
-               'solidCylinder', 'solidLine', 'solidRing', 'solidSphere',
-               'solidTeapot', 'volshow')
-
-_disable_funcs = ('close', 'closeAll', 'ginput', 'processEvents', 'use')
-
+# Allow 'solo' functions to be called outside of a with block
 def _make_func(name):
     try:
         vfunc = getattr(visvis.functions, name)
@@ -228,9 +245,3 @@ for _cmd in _solo_funcs:
     if _func is not None:
         exec("%s = _func"%_cmd)
 
-def _do_nothing(*args, **kw):
-    """This function has been disabled by revis."""
-    return None
-
-for _cmd in _disable_funcs:
-    exec("%s = _do_nothing"%_cmd)
