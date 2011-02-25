@@ -51,6 +51,7 @@ class Toolbar(gtk.Toolbar):
     def __init__(self, figure):
         gtk.Toolbar.__init__(self)
         self.figure = figure
+        self.set_style(gtk.TOOLBAR_BOTH_HORIZ)
         
         savebutton = gtk.ToolButton(gtk.STOCK_SAVE_AS)
         savebutton.connect("clicked", self.savefig)
@@ -58,11 +59,13 @@ class Toolbar(gtk.Toolbar):
         
         shiftbutton = gtk.ToggleToolButton()
         shiftbutton.set_icon_widget(gtk.Label('Shift'))
+        shiftbutton.set_label('Shift')
         shiftbutton.connect("toggled", self.fakekey, visvis.constants.KEY_SHIFT)
         self.insert(shiftbutton, -1)
         
         ctrlbutton = gtk.ToggleToolButton()
         ctrlbutton.set_icon_widget(gtk.Label('Control'))
+        ctrlbutton.set_label('Control')
         ctrlbutton.connect("toggled", self.fakekey, visvis.constants.KEY_CONTROL)
         self.insert(ctrlbutton, -1)
     
