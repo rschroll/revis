@@ -151,6 +151,10 @@ class SuperFigure(Figure, CustomResult):
         self._widget.connect("realize", lambda widget:
             widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
         
+        # We need a figure in order to get working glInfo
+        if visvis.misc._glInfo[0] is None:
+            self._widget.connect("realize", lambda widget: _getOpenGlInfo())
+        
         toolbar = Toolbar(self)
         e = gtk.EventBox() # For setting cursor
         e.add(toolbar)
@@ -183,6 +187,12 @@ class SuperFigure(Figure, CustomResult):
         
         return height
 
+
+# Make sure nothing calls getOpenGlInfo at a bad time.  Disable the old
+# name and move the function to a new name, which we call at an appropriate
+# place.
+_getOpenGlInfo = visvis.misc.getOpenGlInfo
+visvis.misc.getOpenGlInfo = lambda: tuple(visvis.misc._glInfo)
 
 # Import visvis.functions to current namespace, for convenience
 from visvis.functions import *
