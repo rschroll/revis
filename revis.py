@@ -56,18 +56,6 @@ class Toolbar(gtk.Toolbar):
         savebutton = gtk.ToolButton(gtk.STOCK_SAVE_AS)
         savebutton.connect("clicked", self.savefig)
         self.insert(savebutton, 0)
-        
-        shiftbutton = gtk.ToggleToolButton()
-        shiftbutton.set_icon_widget(gtk.Label('Shift'))
-        shiftbutton.set_label('Shift')
-        shiftbutton.connect("toggled", self.fakekey, visvis.constants.KEY_SHIFT)
-        self.insert(shiftbutton, -1)
-        
-        ctrlbutton = gtk.ToggleToolButton()
-        ctrlbutton.set_icon_widget(gtk.Label('Control'))
-        ctrlbutton.set_label('Control')
-        ctrlbutton.connect("toggled", self.fakekey, visvis.constants.KEY_CONTROL)
-        self.insert(ctrlbutton, -1)
     
     def savefig(self, widget):
         chooser = gtk.FileChooserDialog("Save As...", None, gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -82,14 +70,6 @@ class Toolbar(gtk.Toolbar):
         
         if filename is not None:
             visvis.screenshot(filename, self.figure, sf=1)
-    
-    def fakekey(self, widget, key):
-        if widget.get_active():
-            ev = self.figure.eventKeyDown
-        else:
-            ev = self.figure.eventKeyUp
-        ev.Set(key, '')
-        ev.Fire()
 
 
 class SuperFigure(Figure, CustomResult):
