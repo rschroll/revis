@@ -1,5 +1,22 @@
-"""revis allows embedding of visvis figures in Reinteract.
+# Copyright 2011 Robert Schroll, rschroll@gmail.com
+# http://rschroll.github.com/revis/
+#
+# This file is distributed under the terms of the BSD license, available
+# at http://www.opensource.org/licenses/bsd-license.php
+
+"""revis is an extension for Reinteract that embeds visvis figures in
+worksheets.  Syntax:
+
+    >>> with figure() as f:
+    ...     <plotting command>
+    ...      :
+    ...     <plotting command>
+    ...     f
+
+where <plotting command> is any visvis command.  The single-command
+plotting functions may be used without the with block.
 """
+__version__ = "0.1"
 
 import os, tempfile, threading
 import cairo
