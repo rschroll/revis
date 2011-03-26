@@ -1,77 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset='utf-8'>
-
-  <title>rschroll/revis @ GitHub</title>
-
-  <style type="text/css">
-    body {
-      margin-top: 1.0em;
-      background-color: #018a1e;
-      font-family: Helvetica, Arial, FreeSans, san-serif;
-      color: #ffffff;
-    }
-    #container {
-      margin: 0 auto;
-      width: 700px;
-    }
-    h1 { font-size: 3.8em; color: #fe75e1; margin-bottom: 3px; }
-    h1 .small { font-size: 0.4em; }
-    h1 a { text-decoration: none }
-    h2 { font-size: 1.5em; color: #fe75e1; }
-    h3 { text-align: center; color: #fe75e1; }
-    a { color: #fe75e1; }
-    .description { font-size: 1.2em; margin-bottom: 30px; margin-top: 30px; font-style: italic;}
-    .download { float: right; }
-    pre { background: #000; color: #fff; padding: 15px;}
-    hr { border: 0; width: 80%; border-bottom: 1px solid #aaa}
-    .footer { text-align:center; padding-top:30px; font-style: italic; }
-  </style>
+<title>revis</title>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
 </head>
-
 <body>
-  <a href="http://github.com/rschroll/revis"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_darkblue_121621.png" alt="Fork me on GitHub" /></a>
+<h1><a id="top">revis</a></h1>
 
-  <div id="container">
+<p><em>revis</em> is an extension for <a href="http://www.reinteract.org/">Reinteract</a> that allows the embedding of <a href="http://code.google.com/p/visvis/">visvis</a> plots.  Visvis is a pure Python plotting library using OpenGL, allowing for fast 3D visualization.  It is object oreinted but also provides a procedural interface, much like matplotlib.  revis allows you to use either interface within Reinteract, in much the same way that <a href="http://rschroll.github.com/refigure2/">refigure2</a> does with matplotlib.</p>
 
-    <div class="download">
-      <a href="http://github.com/rschroll/revis/zipball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/zip.png"></a>
-      <a href="http://github.com/rschroll/revis/tarball/master">
-        <img border="0" width="90" src="http://github.com/images/modules/download/tar.png"></a>
-    </div>
+<h2><a id="features">Features</a></h2>
+<p>Currently, revis is in a very preliminary state.  Basic plotting routines work, but more complicated constructions are likely to fail.  The goal is to support everything that visvis can do, but we're not close to that yet.</p>
 
-    <h1><a href="http://github.com/rschroll/revis">revis</a>
-      <span class="small">by <a href="http://github.com/rschroll">rschroll</a></span></h1>
+<h2><a id="news">What's New</a></h2>
+<h3>0.1</h3>
+<p>Initial release.  This should be considered alpha-quality software; it is known to be buggy and crash.</p>
 
-    <div class="description">
-      visvis extension for Reinteract
-    </div>
+<h2><a id="screenshot">Screenshot</a></h2>
+<img src="screenshot.png" height="715" width="572" alt="Screenshot" />
 
-    <h2>Authors</h2>
-<p>Robert Schroll (rschroll@gmail.com)<br/><br/>      </p>
-<h2>Contact</h2>
-<p> (rschroll@gmail.com)<br/>      </p>
+<h2><a id="get">Getting It</a></h2>
+<p>Download the <a href="https://github.com/rschroll/revis/raw/master/revis.py">single .py file</a>.  Place it in your <code>~/.reinteract/modules</code> folder, which you may need to create.  (It can also go in the <code>reinteract/lib</code> folder of your Reinteract installation, or somewhere else on your <code>sys.path</code>.)</p>
 
+<p>refigure2 is hosted at <a href="http://github.com/rschroll/revis/">github</a>, so if you want to hack it, you can clone the repository <code>git://github.com/rschroll/revis.git</code></p>
 
-    <h2>Download</h2>
-    <p>
-      You can download this project in either
-      <a href="http://github.com/rschroll/revis/zipball/master">zip</a> or
-      <a href="http://github.com/rschroll/revis/tarball/master">tar</a> formats.
-    </p>
-    <p>You can also clone the project with <a href="http://git-scm.com">Git</a>
-      by running:
-      <pre>$ git clone git://github.com/rschroll/revis</pre>
-    </p>
+<h2><a id="use">Using It</a></h2>
+<p>Import the revis module.  For interactive work, I find it much easier to import it into the current namespace.  revis tries to avoid unnecessary namespace pollution.</p>
+<div><pre>from revis import *</pre></div>
+<p>You'll almost always want numpy as well:</p>
+<div><pre>from numpy import *</pre></div>
 
-    <div class="footer">
-      get the source code on GitHub : <a href="http://github.com/rschroll/revis">rschroll/revis</a>
-    </div>
+<p>Single plotting commands<!-- a class="note" href="#note">&#8224;</a --> can be given alone, to create simple plots:</p>
 
-  </div>
+<div><pre>plot([1,2,3])</pre></div>
+<p>Multiple pylab commands can be grouped together in a <code>with</code> block.</p>
+<div><pre>with figure() as f:
+    plot([1,2,3])
+    title('Plot title')
+    f
+</pre></div>
 
-  
+<p>The syntax is borrowed directly from <a href="http://rschroll.github.com/refigure2/">refigure2</a>.  See those docs for more details.  Like refigure2, revis can make use of the <a href="http://rschroll.github.com/refigure2/output.html">output patch</a> to reduce the above to:</p>
+<div><pre>with figure():
+    plot([1,2,3])
+    title('Plot title')
+</pre></div>
+
+<!-- p class="note"><a class="note" id="note">&#8224;</a> Most of the pylab commands work in refigure.  <code>ginput()</code> is known not to work; others may also fail. <code>show()</code> and <code>draw()</code> don't work, but they aren't needed.  <code>figure()</code> works differently in refigure than in matplotlib; see the tutorial for details.</p -->
+
+<h2><a id="issues">Known Issues</a></h2>
+
+<p>Bugs will be tracked on the <a href="http://github.com/rschroll/revis/issues">github issue tracker</a>.</p>
+
+<p>You will need a very recent version of visvis in order for revis figures to receive modifier key information (Shift, Control, etc).</p>
+
+<p>When creating the first figure of a session, revis does not know your OpenGL capabilities.  Therefore, functions that adjust their behavior based on these capabilities (like <code>volshow</code>) will use their low-fi versions for the first figure (<code>volshow2</code> instead of <code>volshow3</code>).  You can get the hi-fi versions by re-executing the figure.</p>
+
+<p>The various screenshot functions will only work after the figure has been created onscreen.  Practially, this means they must come after the with block and not be executed at the same time.  Hopefully, visvis will gain offscreen rendering capabilities and this can be fixed.</p>
+
+<ul id="contents">
+<li><a href="#top">Top</a></li>
+
+<li><a href="#features">Features</a></li>
+<li><a href="#news">What's New</a></li>
+<li><a href="#screenshot">Screenshot</a></li>
+<li><a href="#get">Getting It</a></li>
+<li><a href="#use">Using It</a></li>
+<li><a href="#issues">Known Issues</a></li>
+</ul>
+
+<p class="note">Robert Schroll, rschroll at gmail dot com</p>
 </body>
+
 </html>
