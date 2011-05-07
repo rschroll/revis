@@ -73,6 +73,17 @@ class Toolbar(gtk.Toolbar):
         savebutton = gtk.ToolButton(gtk.STOCK_SAVE_AS)
         savebutton.connect("clicked", self.savefig)
         self.insert(savebutton, 0)
+        
+        sep = gtk.SeparatorToolItem()
+        sep.set_expand(True)
+        sep.set_property('draw', False)
+        self.insert(sep, -1)
+        
+        ti = gtk.ToolItem()
+        self.view_lab = gtk.Label()
+        self.view_lab.set_justify(gtk.JUSTIFY_RIGHT)
+        ti.add(self.view_lab)
+        self.insert(ti, -1)
     
     def savefig(self, widget):
         chooser = gtk.FileChooserDialog("Save As...", None, gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -87,6 +98,19 @@ class Toolbar(gtk.Toolbar):
         
         if filename is not None:
             visvis.screenshot(filename, self.figure, sf=1)
+    
+    def update_view(self):
+        view = self.figure.currentAxes.GetView()
+        viewstr = ""
+        for k,v in view.items():
+            if k == 'zoomx':
+                viewstr += '\n'
+            viewstr += k + ': '
+            if isinstance(v, tuple):
+                viewstr += '(' + ','.join(['%0.3g'%vv for vv in v]) + ') '
+            else:
+                viewstr += '%0.3g '%v
+        self.view_lab.set_text(viewstr)
 
 
 class SuperFigure(Figure, CustomResult):
@@ -110,6 +134,10 @@ class SuperFigure(Figure, CustomResult):
     
     def _ProcessGuiEvents(self):
         _run_in_main_loop(Figure._ProcessGuiEvents, self)
+    
+    def _RedrawGui(self):
+        Figure._RedrawGui(self)
+        self.toolbar.update_view()
 
     
     def __enter__(self):
@@ -152,10 +180,10 @@ class SuperFigure(Figure, CustomResult):
         if visvis.misc._glInfo[0] is None:
             self._widget.connect("realize", lambda widget: _getOpenGlInfo())
         
-        toolbar = Toolbar(self)
+        self.toolbar = Toolbar(self)
         e = gtk.EventBox() # For setting cursor
-        e.add(toolbar)
-        toolbar.connect("realize", lambda widget:
+        e.add(self.toolbar)
+        self.toolbar.connect("realize", lambda widget:
             widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
         
         box = gtk.VBox()
