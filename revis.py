@@ -62,6 +62,106 @@ def _run_in_main_loop(func, *args, **kwargs):
     callbackobj.event.wait()
     return callbackobj.result
 
+maxcint = 65536.
+def gdk2float(gdkcolor):
+    return gdkcolor.red/maxcint, gdkcolor.green/maxcint, gdkcolor.blue/maxcint
+
+class LightsWindow(gtk.Window):
+    
+    def __init__(self, figure, openbutton):
+        gtk.Window.__init__(self) #, gtk.WINDOW_POPUP)
+        self.set_resizable(False)
+        self.set_title('Lights')
+        self.figure = figure
+        self.openbutton = openbutton
+        
+        table = gtk.Table(6, 4, True)
+        self.chooser = gtk.combo_box_new_text()
+        for i in range(8):
+            self.chooser.append_text(str(i))
+        self.chooser.connect("changed", self.on_choose_light)
+        table.attach(self.chooser, 0,1, 0,1)
+        
+        for i, txt in enumerate(('position', 'ambient', 'diffuse', 'specular', 'color')):
+            lab = gtk.Label(txt)
+            lab.set_alignment(1, 0.5)
+            table.attach(lab, 0,1, 1+i,2+i)
+        self.cb_on = gtk.CheckButton('On')
+        self.cb_on.connect("toggled", self.on_set_bool, "isOn")
+        table.attach(self.cb_on, 1,2, 0,1)
+        self.cb_cam = gtk.CheckButton('Camlight')
+        self.cb_cam.connect("toggled", self.on_set_bool, "isCamLight")
+        table.attach(self.cb_cam, 2,3, 0,1) # Should be able to do 2,4, but this messes up prev cb
+        
+        self.sb_pos = [gtk.SpinButton(gtk.Adjustment(0,-10,10,0.1,1), digits=1) for i in range(4)]
+        hbox = gtk.HBox()
+        for sb in self.sb_pos:
+            sb.connect("value-changed", self.on_change_position)
+            hbox.pack_start(sb)
+        table.attach(hbox, 1,4, 1,2)
+        
+        self.sliders = [(val, gtk.HScale(gtk.Adjustment(0, 0, 1, 0.01, 0.1))) for val in ('ambient', 'diffuse', 'specular')]
+        for i, (val, slider) in enumerate(self.sliders):
+            slider.set_digits(2)
+            slider.set_value_pos(gtk.POS_RIGHT)
+            slider.connect("value-changed", self.on_change_intensity, val)
+            table.attach(slider, 1,4, 2+i,3+i)
+        
+        box = gtk.HBox()
+        self.color = gtk.ColorButton()
+        self.color.connect("color-set", self.on_change_color)
+        box.pack_start(self.color, False, False)
+        table.attach(box, 1,4, 5,6)
+        
+        table.show_all()
+        self.add(table)
+        
+        self.connect('delete-event', self.on_delete)
+    
+    def open(self):
+        self.chooser.set_active(0)
+        self.show()
+    
+    def on_delete(self, widget, event):
+        self.openbutton.set_active(False)
+        return True
+    
+    def on_choose_light(self, widget):
+        self.currlight = None
+        currlight = self.figure.currentAxes.lights[widget.get_active()]
+        
+        self.cb_on.set_active(currlight.isOn)
+        self.cb_cam.set_active(currlight.isCamLight)
+        for pos, sb in zip(currlight.position, self.sb_pos):
+            sb.set_value(pos)
+        for val, slider in self.sliders:
+            cval = getattr(currlight, val)
+            if isinstance(cval, tuple):
+                print "Warning - destroying color of", val
+                cval = (cval[0] + cval[1] + cval[2])/3.
+            slider.set_value(cval)
+        self.color.set_color(gtk.gdk.Color(*map(float, currlight.color[:3])))
+        
+        self.currlight = currlight
+    
+    def on_set_bool(self, widget, attr):
+        if self.currlight is not None:
+            if attr is "isOn":
+                self.currlight.On(widget.get_active())
+            else:
+                setattr(self.currlight, attr, widget.get_active())
+    
+    def on_change_position(self, widget):
+        if self.currlight is not None:
+            self.currlight.position = [sb.get_value() for sb in self.sb_pos]
+    
+    def on_change_intensity(self, widget, attr):
+        if self.currlight is not None:
+            setattr(self.currlight, attr, widget.get_value())
+    
+    def on_change_color(self, widget):
+        if self.currlight is not None:
+            self.currlight.color = gdk2float(widget.get_color())
 
 class Toolbar(gtk.Toolbar):
     
@@ -74,6 +174,14 @@ class Toolbar(gtk.Toolbar):
         savebutton.connect("clicked", self.savefig)
         self.insert(savebutton, 0)
         
+        lightbutton = gtk.ToggleToolButton()
+        lightbutton.set_icon_widget(gtk.Label('Lights'))
+        lightbutton.set_label('Lights')
+        lightbutton.connect("toggled", self.on_toggle_lights)
+        self.insert(lightbutton, -1)
+        
+        self.lights_window = LightsWindow(self.figure, lightbutton)
+        
         sep = gtk.SeparatorToolItem()
         sep.set_expand(True)
         sep.set_property('draw', False)
@@ -84,6 +192,12 @@ class Toolbar(gtk.Toolbar):
         self.view_lab.set_justify(gtk.JUSTIFY_RIGHT)
         ti.add(self.view_lab)
         self.insert(ti, -1)
+        
+        self.connect("destroy", self.on_destroy)
+    
+    def on_destroy(self, widget):
+        self.lights_window.destroy()
+        return False
     
     def savefig(self, widget):
         chooser = gtk.FileChooserDialog("Save As...", None, gtk.FILE_CHOOSER_ACTION_SAVE,
@@ -111,6 +225,16 @@ class Toolbar(gtk.Toolbar):
             else:
                 viewstr += '%0.3g '%v
         self.view_lab.set_text(viewstr)
+    
+    def on_toggle_lights(self, widget):
+        if widget.get_active():
+            pos = widget.allocation
+            xo, yo = widget.window.get_origin()
+            self.lights_window.move(xo + pos.x, yo + pos.y + pos.height)
+            self.lights_window.set_transient_for(widget.get_toplevel())
+            self.lights_window.open()
+        else:
+            self.lights_window.hide()
 
 
 class SuperFigure(Figure, CustomResult):
@@ -137,7 +261,8 @@ class SuperFigure(Figure, CustomResult):
     
     def _RedrawGui(self):
         Figure._RedrawGui(self)
-        self.toolbar.update_view()
+        if hasattr(self, 'toolbar'):
+            self.toolbar.update_view()
 
     
     def __enter__(self):
