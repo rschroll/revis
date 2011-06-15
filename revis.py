@@ -216,12 +216,17 @@ class Toolbar(gtk.Toolbar):
     def update_view(self):
         view = self.figure.currentAxes.GetView()
         viewstr = ""
-        for k,v in view.items():
-            if k == 'zoomx':
+        isflycam = 1
+        for k,v in sorted(view.items()):
+            if k == 'azimuth':
+                isflycam = 0
+            if k == ('fov', 'rotation')[isflycam]:
                 viewstr += '\n'
             viewstr += k + ': '
             if isinstance(v, tuple):
                 viewstr += '(' + ','.join(['%0.3g'%vv for vv in v]) + ') '
+            elif isinstance(v, visvis.Quaternion):
+                viewstr += '%0.2g+%0.2gi+%0.2gj+%0.2gk '%(v.w, v.x, v.y, v.z)
             else:
                 viewstr += '%0.3g '%v
         self.view_lab.set_text(viewstr)
@@ -294,12 +299,26 @@ class SuperFigure(Figure, CustomResult):
             self.statement.result_scope['reinteract_output'](self)
     
     
+    def _on_button_press(self, widget, event):
+        # Grab the focus and return true to keep the event from bubbling up
+        # to the TextView, which would grab focus right back.
+        widget.grab_focus()
+        return True
+    
+    def _on_key_press(self, widget, event):
+        # Key presses are already handled in the GTK backend.  This just
+        # keeps them from bubbling up to the TextView, which would insert
+        # a character.
+        return True
+    
     def create_widget(self):
         app.Create()
         self._widget = GlCanvas(self)
         self._widget.set_size_request(*self._size)
         self._widget.connect("realize", lambda widget:
             widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
+        self._widget.connect("button_press_event", self._on_button_press)
+        self._widget.connect("key_press_event", self._on_key_press)
         
         # We need a figure in order to get working glInfo
         if visvis.misc._glInfo[0] is None:
