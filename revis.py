@@ -25,6 +25,8 @@ import gtk
 import gtk.gtkgl # To keep from crashing on load.
 from visvis.backends.backend_gtk import Figure, BaseFigure, GlCanvas, app
 import visvis
+if visvis.__version__.split('.') < ['1', '5']:
+    print "Warning: visvis %s is not supported by revis.  Please upgrade to at least 1.5."%visvis.__version__
 
 from threading import RLock
 from reinteract.custom_result import CustomResult
