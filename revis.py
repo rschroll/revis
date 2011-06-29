@@ -18,21 +18,23 @@ plotting functions may be used without the with block.
 """
 __version__ = "0.1"
 
-import os, tempfile, threading
-import cairo
-import gobject
-import gtk
-import gtk.gtkgl # To keep from crashing on load.
-from visvis.backends.backend_gtk import Figure, BaseFigure, GlCanvas, app
+import os as _os
+import tempfile as _tempfile
+import threading as _threading
+import cairo as _cairo
+import gobject as _gobject
+import gtk as _gtk
+import gtk.gtkgl as _gtkgl# To keep from crashing on load.
+from visvis.backends.backend_gtk import Figure as _Figure, BaseFigure as _BaseFigure, \
+                                        GlCanvas as _GlCanvas, app as _app
 import visvis
 if visvis.__version__.split('.') < ['1', '5']:
     print "Warning: visvis %s is not supported by revis.  Please upgrade to at least 1.5."%visvis.__version__
 
-from threading import RLock
-from reinteract.custom_result import CustomResult
-from reinteract.statement import Statement
-if hasattr(Statement, 'get_current'):
-    _get_curr_statement = lambda: Statement.get_current()
+from reinteract.custom_result import CustomResult as _CustomResult
+from reinteract.statement import Statement as _Statement
+if hasattr(_Statement, 'get_current'):
+    _get_curr_statement = lambda: _Statement.get_current()
 else:
     _get_curr_statement = lambda: None
 
@@ -42,75 +44,75 @@ class IdleBlockCallback:
         self.func = func
         self.args = args
         self.kwargs = kwargs
-        self.event = threading.Event()
+        self.event = _threading.Event()
         self.result = None
     def __call__(self):
         #gtk.gdk.threads_enter()
         try:
             self.result = self.func(*self.args, **self.kwargs)
         finally:
-            gtk.gdk.flush()
+            _gtk.gdk.flush()
         #    gtk.gdk.threads_leave()
             self.event.set()
         return False              # don't repeat
 
 def _run_in_main_loop(func, *args, **kwargs):
-    if gobject.main_depth():
+    if _gobject.main_depth():
         # In the main loop already
         return func(*args, **kwargs)
     callbackobj = IdleBlockCallback(func, args, kwargs)
     callbackobj.event.clear()
-    gobject.idle_add(callbackobj, priority=gobject.PRIORITY_LOW)
+    _gobject.idle_add(callbackobj, priority=_gobject.PRIORITY_LOW)
     callbackobj.event.wait()
     return callbackobj.result
 
-maxcint = 65536.
-def gdk2float(gdkcolor):
+def _gdk2float(gdkcolor):
+    maxcint = 65536.
     return gdkcolor.red/maxcint, gdkcolor.green/maxcint, gdkcolor.blue/maxcint
 
-class LightsWindow(gtk.Window):
+class LightsWindow(_gtk.Window):
     
     def __init__(self, figure, openbutton):
-        gtk.Window.__init__(self) #, gtk.WINDOW_POPUP)
+        _gtk.Window.__init__(self) #, gtk.WINDOW_POPUP)
         self.set_resizable(False)
         self.set_title('Lights')
         self.figure = figure
         self.openbutton = openbutton
         
-        table = gtk.Table(6, 4, True)
-        self.chooser = gtk.combo_box_new_text()
+        table = _gtk.Table(6, 4, True)
+        self.chooser = _gtk.combo_box_new_text()
         for i in range(8):
             self.chooser.append_text(str(i))
         self.chooser.connect("changed", self.on_choose_light)
         table.attach(self.chooser, 0,1, 0,1)
         
         for i, txt in enumerate(('position', 'ambient', 'diffuse', 'specular', 'color')):
-            lab = gtk.Label(txt)
+            lab = _gtk.Label(txt)
             lab.set_alignment(1, 0.5)
             table.attach(lab, 0,1, 1+i,2+i)
-        self.cb_on = gtk.CheckButton('On')
+        self.cb_on = _gtk.CheckButton('On')
         self.cb_on.connect("toggled", self.on_set_bool, "isOn")
         table.attach(self.cb_on, 1,2, 0,1)
-        self.cb_cam = gtk.CheckButton('Camlight')
+        self.cb_cam = _gtk.CheckButton('Camlight')
         self.cb_cam.connect("toggled", self.on_set_bool, "isCamLight")
         table.attach(self.cb_cam, 2,3, 0,1) # Should be able to do 2,4, but this messes up prev cb
         
-        self.sb_pos = [gtk.SpinButton(gtk.Adjustment(0,-10,10,0.1,1), digits=1) for i in range(4)]
-        hbox = gtk.HBox()
+        self.sb_pos = [_gtk.SpinButton(_gtk.Adjustment(0,-10,10,0.1,1), digits=1) for i in range(4)]
+        hbox = _gtk.HBox()
         for sb in self.sb_pos:
             sb.connect("value-changed", self.on_change_position)
             hbox.pack_start(sb)
         table.attach(hbox, 1,4, 1,2)
         
-        self.sliders = [(val, gtk.HScale(gtk.Adjustment(0, 0, 1, 0.01, 0.1))) for val in ('ambient', 'diffuse', 'specular')]
+        self.sliders = [(val, _gtk.HScale(_gtk.Adjustment(0, 0, 1, 0.01, 0.1))) for val in ('ambient', 'diffuse', 'specular')]
         for i, (val, slider) in enumerate(self.sliders):
             slider.set_digits(2)
-            slider.set_value_pos(gtk.POS_RIGHT)
+            slider.set_value_pos(_gtk.POS_RIGHT)
             slider.connect("value-changed", self.on_change_intensity, val)
             table.attach(slider, 1,4, 2+i,3+i)
         
-        box = gtk.HBox()
-        self.color = gtk.ColorButton()
+        box = _gtk.HBox()
+        self.color = _gtk.ColorButton()
         self.color.connect("color-set", self.on_change_color)
         box.pack_start(self.color, False, False)
         table.attach(box, 1,4, 5,6)
@@ -142,7 +144,7 @@ class LightsWindow(gtk.Window):
                 print "Warning - destroying color of", val
                 cval = (cval[0] + cval[1] + cval[2])/3.
             slider.set_value(cval)
-        self.color.set_color(gtk.gdk.Color(*map(float, currlight.color[:3])))
+        self.color.set_color(_gtk.gdk.Color(*map(float, currlight.color[:3])))
         
         self.currlight = currlight
     
@@ -163,35 +165,35 @@ class LightsWindow(gtk.Window):
     
     def on_change_color(self, widget):
         if self.currlight is not None:
-            self.currlight.color = gdk2float(widget.get_color())
+            self.currlight.color = _gdk2float(widget.get_color())
 
-class Toolbar(gtk.Toolbar):
+class Toolbar(_gtk.Toolbar):
     
     def __init__(self, figure):
-        gtk.Toolbar.__init__(self)
+        _gtk.Toolbar.__init__(self)
         self.figure = figure
-        self.set_style(gtk.TOOLBAR_BOTH_HORIZ)
+        self.set_style(_gtk.TOOLBAR_BOTH_HORIZ)
         
-        savebutton = gtk.ToolButton(gtk.STOCK_SAVE_AS)
+        savebutton = _gtk.ToolButton(_gtk.STOCK_SAVE_AS)
         savebutton.connect("clicked", self.savefig)
         self.insert(savebutton, 0)
         
-        lightbutton = gtk.ToggleToolButton()
-        lightbutton.set_icon_widget(gtk.Label('Lights'))
+        lightbutton = _gtk.ToggleToolButton()
+        lightbutton.set_icon_widget(_gtk.Label('Lights'))
         lightbutton.set_label('Lights')
         lightbutton.connect("toggled", self.on_toggle_lights)
         self.insert(lightbutton, -1)
         
         self.lights_window = LightsWindow(self.figure, lightbutton)
         
-        sep = gtk.SeparatorToolItem()
+        sep = _gtk.SeparatorToolItem()
         sep.set_expand(True)
         sep.set_property('draw', False)
         self.insert(sep, -1)
         
-        ti = gtk.ToolItem()
-        self.view_lab = gtk.Label()
-        self.view_lab.set_justify(gtk.JUSTIFY_RIGHT)
+        ti = _gtk.ToolItem()
+        self.view_lab = _gtk.Label()
+        self.view_lab.set_justify(_gtk.JUSTIFY_RIGHT)
         ti.add(self.view_lab)
         self.insert(ti, -1)
         
@@ -202,13 +204,13 @@ class Toolbar(gtk.Toolbar):
         return False
     
     def savefig(self, widget):
-        chooser = gtk.FileChooserDialog("Save As...", None, gtk.FILE_CHOOSER_ACTION_SAVE,
-                                        (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL,
-                                         gtk.STOCK_SAVE,   gtk.RESPONSE_OK))
-        chooser.set_default_response(gtk.RESPONSE_OK)
+        chooser = _gtk.FileChooserDialog("Save As...", None, _gtk.FILE_CHOOSER_ACTION_SAVE,
+                                         (_gtk.STOCK_CANCEL, _gtk.RESPONSE_CANCEL,
+                                          _gtk.STOCK_SAVE,   _gtk.RESPONSE_OK))
+        chooser.set_default_response(_gtk.RESPONSE_OK)
         response = chooser.run()
         filename = None
-        if response == gtk.RESPONSE_OK:
+        if response == _gtk.RESPONSE_OK:
             filename = chooser.get_filename()
         chooser.destroy()
         
@@ -244,14 +246,14 @@ class Toolbar(gtk.Toolbar):
             self.lights_window.hide()
 
 
-class SuperFigure(Figure, CustomResult):
+class SuperFigure(_Figure, _CustomResult):
     
-    lock = RLock()
+    lock = _threading.RLock()
     current_fig = None
     
     def __init__(self, disable_output=True, figsize=(560,420), **figkw):
         self._widget = None
-        BaseFigure.__init__(self, **figkw) # Skip Figure, to avoid creating _widget
+        _BaseFigure.__init__(self, **figkw) # Skip Figure, to avoid creating _widget
         self._disable_output = disable_output
         self._size = figsize
     
@@ -259,15 +261,15 @@ class SuperFigure(Figure, CustomResult):
         # Sometimes this is called before the widget is made, so we have
         # to fake the answer
         if self._widget is not None:
-            return Figure._GetPosition(self)
+            return _Figure._GetPosition(self)
         else:
             return 0, 0, self._size[0], self._size[1]
     
     def _ProcessGuiEvents(self):
-        _run_in_main_loop(Figure._ProcessGuiEvents, self)
+        _run_in_main_loop(_Figure._ProcessGuiEvents, self)
     
     def _RedrawGui(self):
-        Figure._RedrawGui(self)
+        _Figure._RedrawGui(self)
         if hasattr(self, 'toolbar'):
             self.toolbar.update_view()
 
@@ -314,11 +316,11 @@ class SuperFigure(Figure, CustomResult):
         return True
     
     def create_widget(self):
-        app.Create()
-        self._widget = GlCanvas(self)
+        _app.Create()
+        self._widget = _GlCanvas(self)
         self._widget.set_size_request(*self._size)
         self._widget.connect("realize", lambda widget:
-            widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
+            widget.window.set_cursor(_gtk.gdk.Cursor(_gtk.gdk.LEFT_PTR)))
         self._widget.connect("button_press_event", self._on_button_press)
         self._widget.connect("key_press_event", self._on_key_press)
         
@@ -327,12 +329,12 @@ class SuperFigure(Figure, CustomResult):
             self._widget.connect("realize", lambda widget: _getOpenGlInfo())
         
         self.toolbar = Toolbar(self)
-        e = gtk.EventBox() # For setting cursor
+        e = _gtk.EventBox() # For setting cursor
         e.add(self.toolbar)
         self.toolbar.connect("realize", lambda widget:
-            widget.window.set_cursor(gtk.gdk.Cursor(gtk.gdk.LEFT_PTR)))
+            widget.window.set_cursor(_gtk.gdk.Cursor(_gtk.gdk.LEFT_PTR)))
         
-        box = gtk.VBox()
+        box = _gtk.VBox()
         box.pack_start(self._widget, True, True)
         box.pack_start(e, False, False)
         box.show_all()
@@ -346,11 +348,11 @@ class SuperFigure(Figure, CustomResult):
             sf = 2 # Scale factor for rendering.  (Note that screenshot
                    # doesn't actually do supersampling yet.)
             # PIL (used by screenshot) doesn't like pipes.
-            fd, fn = tempfile.mkstemp()
-            os.close(fd)
+            fd, fn = _tempfile.mkstemp()
+            _os.close(fd)
             visvis.screenshot(fn, self, sf=sf, format="png")
-            image = cairo.ImageSurface.create_from_png(fn)
-            os.unlink(fn)
+            image = _cairo.ImageSurface.create_from_png(fn)
+            _os.unlink(fn)
             
             cr.scale(1./sf, 1./sf)
             cr.set_source_surface(image, 0, 0)
