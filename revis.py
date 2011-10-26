@@ -247,11 +247,12 @@ class SuperFigure(_Figure, _CustomResult):
     lock = _threading.RLock()
     current_fig = None
     
-    def __init__(self, disable_output=True, figsize=(560,420), **figkw):
+    def __init__(self, disable_output=True, figsize=(560,420), display='inline', **figkw):
         self._widget = None
         _BaseFigure.__init__(self, **figkw) # Skip Figure, to avoid creating _widget
         self._disable_output = disable_output
         self._size = figsize
+        self.display = display
     
     def _GetPosition(self):
         # Sometimes this is called before the widget is made, so we have
