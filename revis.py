@@ -33,10 +33,6 @@ if visvis.__version__.split('.') < ['1', '5']:
 
 from reinteract.custom_result import CustomResult as _CustomResult
 from reinteract.statement import Statement as _Statement
-if hasattr(_Statement, 'get_current'):
-    _get_curr_statement = lambda: _Statement.get_current()
-else:
-    _get_curr_statement = lambda: None
 
 # From Stephen Langer (stephen.langer@nist.gov)
 class IdleBlockCallback:
@@ -283,12 +279,10 @@ class SuperFigure(_Figure, _CustomResult):
     def __exit__(self, type, value, traceback):
         self.__class__.current_fig = None
         self._restore_reinteract_output()
-        if self._widget is None:
-            self._output_figure()
         self.__class__.lock.release()
     
     def _disable_reinteract_output(self):
-        self.statement = _get_curr_statement()
+        self.statement = _Statement.get_current()
         if self.statement is not None:
             self.old_reinteract_output = self.statement.result_scope['reinteract_output']
             if self._disable_output:
@@ -297,10 +291,6 @@ class SuperFigure(_Figure, _CustomResult):
     def _restore_reinteract_output(self):
         if self.statement is not None:
             self.statement.result_scope['reinteract_output'] = self.old_reinteract_output
-    
-    def _output_figure(self):
-        if self.statement is not None:
-            self.statement.result_scope['reinteract_output'](self)
     
     
     def _on_button_press(self, widget, event):
@@ -437,8 +427,7 @@ def _make_func(name):
             if gcf() is None:
                 with figure() as f:
                     vfunc(*args, **kw)
-                if _get_curr_statement() is None:
-                    return f
+                return f
             else:
                 return vfunc(*args, **kw)
         finally:
