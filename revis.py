@@ -314,6 +314,7 @@ class SuperFigure(_Figure, _CustomResult):
             widget.window.set_cursor(_gtk.gdk.Cursor(_gtk.gdk.LEFT_PTR)))
         self._widget.connect("button_press_event", self._on_button_press)
         self._widget.connect("key_press_event", self._on_key_press)
+        self._widget.disconnect_by_func(self._widget._on_scroll_event)
         
         # We need a figure in order to get working glInfo
         if visvis.misc._glInfo[0] is None:
